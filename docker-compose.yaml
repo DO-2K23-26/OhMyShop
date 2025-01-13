@@ -95,3 +95,35 @@ services:
                 bootstrap.servers: "broker-1:19092,broker-2:19092"
     ports:
       - 8080:8080
+
+  minio:
+    image: 'minio/minio:latest'
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: password
+    command: 'minio server /data --console-address ":9001"'
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - 'http://localhost:9000/minio/health/live'
+      retries: 3
+      timeout: 5s
+
+  init-minio:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set myminio http://minio:9000 minio password); do echo 'Waiting for MinIO...'; sleep 3; done;
+      mc mb myminio/iceberg-tables;
+      mc mb myminio/parquet-files;
+      mc policy set public myminio/parquet-files;
+      mc policy set public myminio/iceberg-tables;
+      echo 'Buckets created and policies set!';
+      "
