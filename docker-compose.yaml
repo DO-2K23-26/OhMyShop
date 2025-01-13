@@ -4,7 +4,7 @@ services:
     container_name: broker-1
     restart: unless-stopped
     ports:
-          - 19092:9092
+      - 19092:9092
     environment:
       # Shared setup
       KAFKA_NODE_ID: 1
@@ -35,7 +35,7 @@ services:
     container_name: broker-2
     restart: unless-stopped
     ports:
-          - 29092:9092
+      - 29092:9092
     environment:
       # Shared setup
       KAFKA_NODE_ID: 2
@@ -61,18 +61,37 @@ services:
       timeout: 5s
       retries: 5
 
-  akhq:
-      image: tchiotludo/akhq
-      restart: unless-stopped
+  init-topics:
+    image: apache/kafka:latest
     depends_on:
       - broker-1
       - broker-2
-      environment:
-        AKHQ_CONFIGURATION: |
-          akhq:
-            connections:
-              docker-kafka-server:
-                properties:
-                  bootstrap.servers: "broker-1:19092,broker-2:19092"
-      ports:
-        - 8080:8080
+    environment:
+      BOOTSTRAP_SERVERS: broker-1:19092
+    entrypoint: >
+      bash -c '
+        echo "Waiting for Kafka to be ready...";
+        for i in {1..30}; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server broker-1:19092 --list && break || sleep 2;
+        done;
+        echo "Creating topics...";
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Client --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Product --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Command --partitions 2 --replication-factor 2;
+        echo "Kafka initialization complete.";'
+
+  akhq:
+    image: tchiotludo/akhq
+    restart: unless-stopped
+    depends_on:
+      - broker-1
+      - broker-2
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka-server:
+              properties:
+                bootstrap.servers: "broker-1:19092,broker-2:19092"
+    ports:
+      - 8080:8080
