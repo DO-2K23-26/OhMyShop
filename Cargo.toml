@@ -9,7 +9,7 @@ edition = "2021"
 
 [[bin]]
 name = "producer"
-path = "src/server/main.rs"
+path = "src/producer/main.rs"
 test = false
 
 [[bin]]
