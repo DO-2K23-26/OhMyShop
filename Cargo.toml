@@ -6,3 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[[bin]]
+name = "producer"
+path = "src/server/main.rs"
+test = false
+
+[[bin]]
+name = "merger"
+path = "src/merger/main.rs"
+
+[[bin]]
+name = "saver"
+path = "src/saver/main.rs"
