@@ -1,1 +1,1 @@
-# POC-Kafka-Aggregator
+# OhMyShop
