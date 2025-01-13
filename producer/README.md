@@ -1,4 +1,3 @@
-
 ## Producer
 
 A producer is a service that provides data to a consumer. In this case, the producer is a service that provides data about clients, orders and products to a consumer.
