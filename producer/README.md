@@ -42,14 +42,15 @@ erDiagram
 
 ### Initial setup of database
 ```bash
-cd producer
+docker compose up -d
 cargo sqlx migrate run
+cargo run -p producer -- --seed
+cd producer
 cargo sqlx prepare
 cd ..
 ```
 
 ### Launch the producer
 ```bash
-docker compose up -d
 cargo run -p producer
 ```
