@@ -5,7 +5,6 @@ use common::product::ProductInterface;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::BaseProducer;
 use sqlx::{PgPool, Error};
-use tokio::time::{sleep, Duration};
 
 mod client;
 mod command;
