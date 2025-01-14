@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+use common::client::ClientInterface;
 use fake::{faker::name::en::Name, faker::internet::en::SafeEmail, faker::address::en::SecondaryAddress, Fake};
 use sqlx::PgPool;
 
@@ -9,8 +11,9 @@ pub struct MyClient {
     pub address: String,
 }
 
-impl MyClient {
-    pub fn generate_random() -> Self {
+#[async_trait]
+impl ClientInterface for MyClient {
+    fn generate_random() -> Self {
 
         MyClient {
             id: 0, // This will be set by the database
@@ -20,7 +23,7 @@ impl MyClient {
         }
     }
 
-    pub async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
+    async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO Client (name, email, address) VALUES ($1, $2, $3)",
             self.name,

@@ -1,5 +1,8 @@
 use sqlx::{PgPool, Error};
 use tokio::time::Duration;
+use common::client::ClientInterface;
+use common::command::CommandInterface;
+use common::product::ProductInterface;
 
 mod client;
 mod command;

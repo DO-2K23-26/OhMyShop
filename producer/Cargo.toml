@@ -14,3 +14,4 @@ sqlx = {version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chro
 tokio = { version = "1.43.0", features = ["full", "rt-multi-thread"] }
 tokio-macros = "2.5.0"
 common = { path = "../common" }
+async-trait = "0.1.85"

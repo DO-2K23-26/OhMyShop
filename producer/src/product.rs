@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+use common::product::ProductInterface;
 use fake::Fake;
 use sqlx::PgPool;
 
@@ -8,8 +10,9 @@ pub struct Product {
     pub price: f64,
 }
 
-impl Product {
-    pub fn generate_random() -> Self {
+#[async_trait]
+impl ProductInterface for Product {
+    fn generate_random() -> Self {
         Product {
             id: 0, // This will be set by the database
             name: fake::Faker.fake(),
@@ -17,7 +20,7 @@ impl Product {
         }
     }
 
-    pub async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
+    async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO Product (name, price) VALUES ($1, $2)",
             self.name,
