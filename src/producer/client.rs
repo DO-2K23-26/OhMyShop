@@ -21,7 +21,7 @@ impl ClientObject {
 
     pub async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO clients (name, email, address) VALUES ($1, $2, $3)",
+            "INSERT INTO Client (name, email, address) VALUES ($1, $2, $3)",
             self.name,
             self.email,
             self.address
