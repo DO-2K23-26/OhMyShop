@@ -4,7 +4,6 @@ use chrono::DateTime;
 use rand::Rng;
 use rdkafka::producer::{BaseProducer, BaseRecord};
 
-use common::client::Client;
 use common::product::Product;
 use common::command::CommandInterface;
 
@@ -36,7 +35,7 @@ impl CommandInterface for MyCommand {
 
         //retrieve a random client from the database
         let client_object = sqlx::query_as!(
-            Client,
+            common::client::Client,
             "SELECT * FROM Client ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_one(pool)
