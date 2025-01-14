@@ -2,11 +2,11 @@ use sqlx::{PgPool, Error};
 use tokio::time::Duration;
 
 mod client;
-mod order;
+mod command;
 mod product;
 
 async fn produce_client(pool: &PgPool) -> Result<(), Error> {
-    let client = client::ClientObject::generate_random();
+    let client = client::MyClient::generate_random();
     client.insert_into_db(pool).await?;
     // Here you would also produce the client data to Kafka
 
@@ -14,7 +14,7 @@ async fn produce_client(pool: &PgPool) -> Result<(), Error> {
 }
 
 async fn produce_order(pool: &PgPool) -> Result<(), Error> {
-    let order = order::Order::generate_random(); // Assuming client_id = 1 for simplicity
+    let order = command::MyCommand::generate_random(); // Assuming client_id = 1 for simplicity
     order.insert_into_db(pool).await?;
     // Here you would also produce the order data to Kafka
 

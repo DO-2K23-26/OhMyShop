@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::common::product::Product;
+
+use crate::product::Product;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Command {
