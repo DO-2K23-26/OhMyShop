@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rdkafka::producer::BaseProducer;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
@@ -15,5 +16,5 @@ pub struct Command {
 #[async_trait]
 pub trait CommandInterface {
     fn generate_random() -> Self;
-    async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error>;
+    async fn process_command(&self, pool: &PgPool, producer: &BaseProducer, topic_name: &str) -> Result<(), sqlx::Error>;
 }

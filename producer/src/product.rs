@@ -4,16 +4,17 @@ use fake::Fake;
 use sqlx::PgPool;
 
 #[derive(Debug)]
-pub struct Product {
+#[allow(dead_code)]
+pub struct MyProduct {
     pub id: i32,
     pub name: String,
     pub price: f64,
 }
 
 #[async_trait]
-impl ProductInterface for Product {
+impl ProductInterface for MyProduct {
     fn generate_random() -> Self {
-        Product {
+        MyProduct {
             id: 0, // This will be set by the database
             name: fake::Faker.fake(),
             price: fake::Faker.fake::<f64>(),

@@ -1,4 +1,13 @@
 services:
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      
   broker-1:
     image: apache/kafka:latest
     container_name: broker-1
@@ -96,14 +105,6 @@ services:
     ports:
       - 8080:8080
       - controller
-  postgres:
-    image: postgres:17
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
 
   minio:
     image: 'minio/minio:latest'
