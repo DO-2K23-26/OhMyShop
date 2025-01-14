@@ -43,6 +43,7 @@ erDiagram
 ### Initial setup of database
 ```bash
 docker compose up -d
+export DATABASE_URL=postgres://postgres:postgres@localhost/postgres
 cargo sqlx migrate run
 cargo run -p producer -- --seed
 cd producer
