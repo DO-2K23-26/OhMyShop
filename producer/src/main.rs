@@ -1,41 +1,45 @@
-use sqlx::{PgPool, Error};
-use tokio::time::Duration;
+use clap::Parser;
 use common::client::ClientInterface;
 use common::command::CommandInterface;
 use common::product::ProductInterface;
-use rdkafka::producer::BaseProducer;
 use rdkafka::config::ClientConfig;
+use rdkafka::producer::BaseProducer;
+use sqlx::{PgPool, Error};
+use tokio::time::{sleep, Duration};
 
 mod client;
 mod command;
 mod product;
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// If provided, seeds the database with clients and products
+    #[arg(long)]
+    seed: bool,
+}
+
 async fn produce_client(pool: &PgPool) -> Result<(), Error> {
     let client = client::MyClient::generate_random();
     client.insert_into_db(pool).await?;
-    // Here you would also produce the client data to Kafka
-
-    Ok(())
-}
-
-async fn produce_command(pool: &PgPool, producer: &BaseProducer, topic_name: &str) -> Result<(), Error> {
-    let command = command::MyCommand::generate_random(); // Assuming client_id = 1 for simplicity
-    let _ = command.process_command(pool,producer,topic_name).await;
-    // Here you would also produce the order data to Kafka
-
     Ok(())
 }
 
 async fn produce_product(pool: &PgPool) -> Result<(), Error> {
     let product = product::MyProduct::generate_random();
     product.insert_into_db(pool).await?;
-    // Here you would also produce the product data to Kafka
+    Ok(())
+}
 
+async fn produce_command(pool: &PgPool, producer: &BaseProducer, topic_name: &str) -> Result<(), Error> {
+    let command = command::MyCommand::generate_random();
+    command.process_command(pool, producer, topic_name).await?;
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    let cli = Cli::parse();
     let db_url = "postgres://postgres:postgres@localhost/postgres";
     let pool = PgPool::connect(db_url).await?;
     let producer: BaseProducer = ClientConfig::new()
@@ -43,12 +47,18 @@ async fn main() -> Result<(), Error> {
         .create()
         .expect("Failed to create Kafka producer");
 
-
-    loop {
-        //produce_client(&pool).await.unwrap();
-        //produce_product(&pool).await.unwrap();
-            
-        produce_command(&pool, &producer, "Command").await.unwrap();
-        tokio::time::sleep(Duration::from_secs(1)).await;
+    if cli.seed {
+        for _ in 0..100 {
+            produce_client(&pool).await.unwrap();
+            produce_product(&pool).await.unwrap();
+        }
+        println!("Database seeded with clients and products");
+    } else {
+        // Loop forever on producing commands
+        loop {
+            produce_command(&pool, &producer, "Command").await.unwrap();
+        }
     }
+
+    Ok(())
 }
