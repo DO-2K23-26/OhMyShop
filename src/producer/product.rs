@@ -4,8 +4,8 @@ use sqlx::PgPool;
 #[derive(Debug)]
 pub struct Product {
     pub id: i32,
-    name: String,
-    price: f64,
+    pub name: String,
+    pub price: f64,
 }
 
 impl Product {
