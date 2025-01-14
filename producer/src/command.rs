@@ -71,7 +71,8 @@ impl CommandInterface for MyCommand {
         let command_payload = serde_json::json!({
             "client_id": client_object.id,
             "date": self.date,
-            "id": command.id
+            "id": command.id,
+            "size": products.len(),
         }).to_string();
         if let Err(e) = producer.send(
             BaseRecord::to("Command")
