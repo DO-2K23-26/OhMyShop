@@ -5,6 +5,3 @@ target/
 *.pdb
 
 /target
-/.sqlx
-/producer/.sqlx
-.sqlx
