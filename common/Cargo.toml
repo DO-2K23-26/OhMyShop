@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.85"
+rdkafka = "0.37.0"
 serde = { version = "1.0.217", features = ["derive"] }
 sqlx = "0.8.3"
 
