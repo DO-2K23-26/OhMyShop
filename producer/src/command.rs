@@ -67,34 +67,34 @@ impl CommandInterface for MyCommand {
             Client,
             "SELECT * FROM Client ORDER BY RANDOM() LIMIT 1"
         )
-        .fetch_one(pool)
-        .await?;
+            .fetch_one(pool)
+            .await?;
 
         let command_from_db = sqlx::query_as!(
             CommandFromDb,
             r#"
-            INSERT INTO Command (clientId, date) 
-            VALUES ($1, $2) 
+            INSERT INTO Command (clientId, date)
+            VALUES ($1, $2)
             RETURNING id, clientId AS "client_id", COALESCE(TO_CHAR(date, 'YYYY-MM-DD'), '') AS "date!"
             "#,
             client_object.id,
             self.date.naive_utc().date()
         )
-        .fetch_one(pool)
-        .await?;
+            .fetch_one(pool)
+            .await?;
 
         let command = Command::from((command_from_db, product_limit));
 
         let products_from_db = sqlx::query_as!(
             ProductFromDb,
             r#"SELECT id, name, price
-            FROM Product 
-            ORDER BY RANDOM() 
+            FROM Product
+            ORDER BY RANDOM()
             LIMIT $1"#,
             product_limit as i64
         )
-        .fetch_all(pool)
-        .await?;
+            .fetch_all(pool)
+            .await?;
 
         let products: Vec<Product> = products_from_db
             .into_iter()
@@ -102,20 +102,20 @@ impl CommandInterface for MyCommand {
             .collect();
 
         let client_payload = encoder
-        .encode_struct(
-            &client_object,
-            &SubjectNameStrategy::TopicNameStrategy("Client".to_string(), false),
-        )
-        .await
-        .expect("Failed to encode client object");
+            .encode_struct(
+                &client_object,
+                &SubjectNameStrategy::TopicNameStrategy("Client".to_string(), false),
+            )
+            .await
+            .expect("Failed to encode client object");
 
         let command_payload = encoder
-        .encode_struct(
-            &command,
-            &SubjectNameStrategy::TopicNameStrategy("Command".to_string(), false),
-        )
-        .await
-        .expect("Failed to encode command object");
+            .encode_struct(
+                &command,
+                &SubjectNameStrategy::TopicNameStrategy("Command".to_string(), false),
+            )
+            .await
+            .expect("Failed to encode command object");
 
 
 
@@ -127,7 +127,7 @@ impl CommandInterface for MyCommand {
             eprintln!("Failed to send message: {:?}", e);
         } else {
             let message = serde_avro_fast::from_datum_slice::<Client>(&client_payload, &client_schema).unwrap();
-    
+
             println!("Message produced in Client: {}", serde_json::to_string(&message).unwrap());
         }
 
@@ -148,8 +148,8 @@ impl CommandInterface for MyCommand {
                 command.id,
                 product.id
             )
-            .execute(pool)
-            .await?;
+                .execute(pool)
+                .await?;
             let product_payload = encoder
                 .encode_struct(
                     &product,
