@@ -5,16 +5,6 @@ version = 4
 [[package]]
 name = "OhMyShop"
 version = "0.1.0"
-dependencies = [
- "chrono",
- "fake",
- "kafka",
- "postgres",
- "serde",
- "sqlx",
- "tokio",
- "tokio-macros",
-]
 
 [[package]]
 name = "addr2line"
@@ -168,6 +158,13 @@ dependencies = [
  "num-traits",
  "wasm-bindgen",
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -874,6 +871,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
+name = "merger"
+version = "0.1.0"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1156,6 +1157,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "producer"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "common",
+ "fake",
+ "kafka",
+ "postgres",
+ "rand",
+ "sqlx",
+ "tokio",
+ "tokio-macros",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1314,6 +1330,10 @@ name = "ryu"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
+
+[[package]]
+name = "saver"
+version = "0.1.0"
 
 [[package]]
 name = "scopeguard"
@@ -1491,6 +1511,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a007b6936676aa9ab40207cde35daab0a04b823be8ae004368c0793b96a61e0"
 dependencies = [
  "bytes",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -1570,6 +1591,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "digest",
  "dotenvy",
@@ -1611,6 +1633,7 @@ dependencies = [
  "base64",
  "bitflags",
  "byteorder",
+ "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -1645,6 +1668,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f85ca71d3a5b24e64e1d08dd8fe36c6c95c339a896cc33068148906784620540"
 dependencies = [
  "atoi",
+ "chrono",
  "flume",
  "futures-channel",
  "futures-core",

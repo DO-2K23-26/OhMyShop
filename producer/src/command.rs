@@ -1,22 +1,22 @@
+use common::client::Client;
 use sqlx::PgPool;
 use chrono::DateTime;
 use rand::Rng;
 
 use crate::product::Product;
-use crate::client::ClientObject;
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct Order {
+pub struct MyCommand {
     id: i32,
     client_id: i32,
     date: DateTime<chrono::Utc>,
     products: Vec<Product>,
 }
 
-impl Order {
+impl MyCommand {
     pub fn generate_random() -> Self {
-        Order {
+        MyCommand {
             id: 0, // This will be set by the database
             client_id: 0,  //This will be set randomly
             date: chrono::Utc::now(),
@@ -30,7 +30,7 @@ impl Order {
 
         //retrieve a random client from the database
         let client_object = sqlx::query_as!(
-            ClientObject,
+            Client,
             "SELECT * FROM Client ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_one(pool)
@@ -44,7 +44,7 @@ impl Order {
         .fetch_all(pool)
         .await?;
 
-        let order_id = sqlx::query!(
+        let command_id = sqlx::query!(
             "INSERT INTO Command (clientId, date) VALUES ($1, $2) RETURNING id",
             client_object.id,
             self.date.naive_utc().date()
@@ -56,7 +56,7 @@ impl Order {
         for product in products {
             sqlx::query!(
                 "INSERT INTO CommandProduct (commandId, productId) VALUES ($1, $2)",
-                order_id,
+                command_id,
                 product.id
             )
             .execute(pool)
