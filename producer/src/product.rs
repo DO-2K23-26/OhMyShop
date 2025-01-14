@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common::product::ProductInterface;
-use fake::Fake;
+use fake::{faker::lorem::fr_fr::Word, Fake};
+use rand::Rng;
 use sqlx::PgPool;
 
 #[derive(Debug)]
@@ -16,8 +17,8 @@ impl ProductInterface for MyProduct {
     fn generate_random() -> Self {
         MyProduct {
             id: 0, // This will be set by the database
-            name: fake::Faker.fake(),
-            price: fake::Faker.fake::<f64>(),
+            name: Word().fake::<String>(),
+            price: rand::thread_rng().gen_range(1.0..=100.0),
         }
     }
 
