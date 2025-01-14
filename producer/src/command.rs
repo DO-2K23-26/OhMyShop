@@ -12,20 +12,16 @@ use common::command::CommandInterface;
 #[allow(dead_code)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct MyCommand {
-    id: i32,
     client_id: i32,
     date: DateTime<chrono::Utc>,
-    products: Vec<Product>,
 }
 
 #[async_trait]
 impl CommandInterface for MyCommand {
     fn generate_random() -> Self {
         MyCommand {
-            id: 0, // This will be set by the database
             client_id: 0,  //This will be set randomly
             date: chrono::Utc::now(),
-            products: vec![],
         }
     }
 
@@ -72,7 +68,11 @@ impl CommandInterface for MyCommand {
         .fetch_one(pool)
         .await?;
 
-        let command_payload = serde_json::to_string(&self).unwrap();
+        let command_payload = serde_json::json!({
+            "client_id": client_object.id,
+            "date": self.date,
+            "id": command.id
+        }).to_string();
         if let Err(e) = producer.send(
             BaseRecord::to("Command")
                 .payload(&command_payload)
@@ -85,21 +85,26 @@ impl CommandInterface for MyCommand {
 
         for product in products {
             sqlx::query!(
-                "INSERT INTO CommandProduct (commandId, productId) VALUES ($1, $2)",
-                command.id,
-                product.id
+            "INSERT INTO CommandProduct (commandId, productId) VALUES ($1, $2)",
+            command.id,
+            product.id
             )
             .execute(pool)
             .await?;
-            let product_payload = serde_json::to_string(&product).unwrap();
+            let product_payload = serde_json::json!({
+            "name": product.name,
+            "id": product.id,
+            "price": product.price,
+            "command_id": command.id,
+            }).to_string();
             if let Err(e) = producer.send(
-                BaseRecord::to("Product")
-                    .payload(&product_payload)
-                    .key(&product.id.to_string()),
+            BaseRecord::to("Product")
+                .payload(&product_payload)
+                .key(&product.id.to_string()),
             ) {
-                eprintln!("Failed to send message: {:?}", e);
+            eprintln!("Failed to send message: {:?}", e);
             } else {
-                println!("Message produced: {}", product_payload);
+            println!("Message produced: {}", product_payload);
             }    
         }
 
