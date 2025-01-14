@@ -1,4 +1,5 @@
-use common::client::Client;
+use async_trait::async_trait;
+use common::{client::Client, command::CommandInterface};
 use sqlx::PgPool;
 use chrono::DateTime;
 use rand::Rng;
@@ -14,8 +15,9 @@ pub struct MyCommand {
     products: Vec<Product>,
 }
 
-impl MyCommand {
-    pub fn generate_random() -> Self {
+#[async_trait]
+impl CommandInterface for MyCommand {
+    fn generate_random() -> Self {
         MyCommand {
             id: 0, // This will be set by the database
             client_id: 0,  //This will be set randomly
@@ -24,7 +26,7 @@ impl MyCommand {
         }
     }
 
-    pub async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
+    async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
         //retrieve random products from database
         let product_limit: i64 = rand::thread_rng().gen_range(1..=10);
 
