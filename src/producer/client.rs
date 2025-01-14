@@ -2,15 +2,17 @@ use fake::{faker::name::en::Name, faker::internet::en::SafeEmail, faker::address
 use sqlx::PgPool;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ClientObject {
-    id: i32,
-    name: String,
-    email: String,
-    address: String,
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+    pub address: String,
 }
 
 impl ClientObject {
     pub fn generate_random() -> Self {
+
         ClientObject {
             id: 0, // This will be set by the database
             name: Name().fake(),

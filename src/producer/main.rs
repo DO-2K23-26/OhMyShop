@@ -14,8 +14,7 @@ async fn produce_client(pool: &PgPool) -> Result<(), Error> {
 }
 
 async fn produce_order(pool: &PgPool) -> Result<(), Error> {
-    let products = vec![product::Product::generate_random()];
-    let order = order::Order::generate_random(1, products); // Assuming client_id = 1 for simplicity
+    let order = order::Order::generate_random(); // Assuming client_id = 1 for simplicity
     order.insert_into_db(pool).await?;
     // Here you would also produce the order data to Kafka
 
