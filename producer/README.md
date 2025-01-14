@@ -39,3 +39,17 @@ erDiagram
         "price": "float"
     }
     ```
+
+### Initial setup of database
+```bash
+cd producer
+cargo sqlx migrate run
+cargo sqlx prepare
+cd ..
+```
+
+### Launch the producer
+```bash
+docker compose up -d
+cargo run -p producer
+```

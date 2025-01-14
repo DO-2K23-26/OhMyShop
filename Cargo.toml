@@ -13,13 +13,13 @@ members = [
 
 [[bin]]
 name = "producer"
-path = "src/producer/main.rs"
+path = "producer/src/main.rs"
 test = false
 
 [[bin]]
 name = "merger"
-path = "src/merger/main.rs"
+path = "merger/src/main.rs"
 
 [[bin]]
 name = "saver"
-path = "src/saver/main.rs"
+path = "saver/src/main.rs"

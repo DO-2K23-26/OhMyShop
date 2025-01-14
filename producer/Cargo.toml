@@ -10,7 +10,7 @@ fake = "3.1.0"
 kafka = "0.10.0"
 postgres = "0.19.9"
 rand = "0.8.5"
-sqlx = {version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"]}
+sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "chrono"] }
 tokio = { version = "1.43.0", features = ["full", "rt-multi-thread"] }
 tokio-macros = "2.5.0"
 common = { path = "../common" }
