@@ -3,9 +3,9 @@ use sqlx::PgPool;
 
 #[derive(Debug)]
 pub struct Product {
-    id: i32,
+    pub id: i32,
     name: String,
-    price: f32,
+    price: f64,
 }
 
 impl Product {
@@ -13,13 +13,13 @@ impl Product {
         Product {
             id: 0, // This will be set by the database
             name: fake::Faker.fake(),
-            price: fake::Faker.fake(),
+            price: fake::Faker.fake::<f64>(),
         }
     }
 
     pub async fn insert_into_db(&self, pool: &PgPool) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO products (name, price) VALUES ($1, $2)",
+            "INSERT INTO Product (name, price) VALUES ($1, $2)",
             self.name,
             self.price
         )
