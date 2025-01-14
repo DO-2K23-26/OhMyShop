@@ -123,7 +123,7 @@ services:
       until (mc alias set myminio http://minio:9000 minio password); do echo 'Waiting for MinIO...'; sleep 3; done;
       mc mb myminio/iceberg-tables;
       mc mb myminio/parquet-files;
-      mc policy set public myminio/parquet-files;
-      mc policy set public myminio/iceberg-tables;
+      mc anonymous set public myminio/parquet-files;
+      mc anonymous set public myminio/iceberg-tables;
       echo 'Buckets created and policies set!';
       "
