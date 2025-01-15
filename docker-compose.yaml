@@ -7,24 +7,25 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-      
   broker-1:
     image: apache/kafka:latest
     container_name: broker-1
     restart: unless-stopped
     ports:
-      - 19092:9092
+      - 19092:19092
     environment:
       # Shared setup
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:19092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:19092,CONTROLLER://:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker-1:9093,2@broker-2:9093
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       # Broker setup
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-1:19092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-1:9092,PLAINTEXT_HOST://localhost:19092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
     healthcheck:
       test:
@@ -44,18 +45,20 @@ services:
     container_name: broker-2
     restart: unless-stopped
     ports:
-      - 29092:9092
+      - 29092:29092
     environment:
       # Shared setup
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:19092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker-1:9093,2@broker-2:9093
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       # Broker setup
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-2:19092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-2:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
     healthcheck:
       test:
@@ -76,21 +79,26 @@ services:
       - broker-1
       - broker-2
     environment:
-      BOOTSTRAP_SERVERS: broker-1:19092
+      BOOTSTRAP_SERVERS: broker-1:9092
     entrypoint: >
       bash -c '
         echo "Waiting for Kafka to be ready...";
         for i in {1..30}; do
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server broker-1:19092 --list && break || sleep 2;
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server broker-1:9092 --list && break || sleep 2;
         done;
         echo "Creating topics...";
-        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Client --partitions 2 --replication-factor 2 &&
-        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Product --partitions 2 --replication-factor 2 &&
-        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:19092 --topic Command --partitions 2 --replication-factor 2;
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic Client --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic Product --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic Command --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic Invoice --partitions 2 --replication-factor 2 &&
+        /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic DeadLetterQueue --partitions 2 --replication-factor 2;
         echo "Kafka initialization complete.";'
 
   akhq:
     image: tchiotludo/akhq
+    volumes:
+      - /opt/tibco/akd/repo/1.2/lib/tibftl-kafka-avro-1.2.0-thin.jar:/app/tibftl-kafka-avro-1.2.0-thin.jar
+      - /opt/tibco/akd/repo/1.2/lib/deps:/app/deps
     restart: unless-stopped
     depends_on:
       - broker-1
@@ -101,10 +109,16 @@ services:
           connections:
             docker-kafka-server:
               properties:
-                bootstrap.servers: "broker-1:19092,broker-2:19092"
+                bootstrap.servers: "broker-1:9092"
+              schema-registry:
+                url: "http://schema-registry:8085"
+      CLASSPATH: "/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*"
     ports:
       - 8080:8080
-      - controller
+    links:
+      - broker-1
+      - broker-2
+      - schema-registry
 
   minio:
     image: 'minio/minio:latest'
@@ -137,3 +151,15 @@ services:
       mc anonymous set public myminio/iceberg-tables;
       echo 'Buckets created and policies set!';
       "
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - broker-1
+      - broker-2
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://broker-1:9092'
+      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
+      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
