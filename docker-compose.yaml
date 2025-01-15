@@ -76,8 +76,10 @@ services:
   init-topics:
     image: apache/kafka:latest
     depends_on:
-      - broker-1
-      - broker-2
+      broker-1:
+        condition: service_healthy
+      broker-2:
+        condition: service_healthy
     environment:
       BOOTSTRAP_SERVERS: broker-1:9092
     entrypoint: >
@@ -101,8 +103,10 @@ services:
       - /opt/tibco/akd/repo/1.2/lib/deps:/app/deps
     restart: unless-stopped
     depends_on:
-      - broker-1
-      - broker-2
+      broker-1:
+        condition: service_healthy
+      broker-2:
+        condition: service_healthy
     environment:
       AKHQ_CONFIGURATION: |
         akhq:
@@ -141,7 +145,8 @@ services:
   init-minio:
     image: minio/mc:latest
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       until (mc alias set myminio http://minio:9000 minio password); do echo 'Waiting for MinIO...'; sleep 3; done;
