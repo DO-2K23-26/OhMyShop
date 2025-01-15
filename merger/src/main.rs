@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 use chrono::Utc;
@@ -7,45 +6,10 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
 use rdkafka::Message;
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct Client {
-    id: i32,
-    name: String,
-    email: String,
-    address: String,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct Command {
-    id: i32,
-    client_id: i32,
-    date: String,
-    size: usize,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct Product {
-    command_id: i32,
-    id: i32,
-    name: String,
-    price: f64,
-}
-
-#[derive(Serialize, Debug)]
-struct Invoice {
-    timestamp: String,
-    client: Client,
-    command: MergedCommand,
-}
-
-#[derive(Serialize, Debug)]
-struct MergedCommand {
-    id: i32,
-    date: String,
-    products: Vec<Product>,
-    total_price: f64,
-}
+use common::client::Client;
+use common::command::{Command, MergedCommand};
+use common::product::Product;
+use common::invoice::Invoice;
 
 async fn process_command(
     producer: &FutureProducer,
@@ -60,7 +24,7 @@ async fn process_command(
             let mut associated_products: Vec<Product> = Vec::new();
             let deadline = Utc::now() + chrono::Duration::seconds(120);
 
-            while associated_products.len() < command.size {
+            while associated_products.len() < command.size as usize {
                 if Utc::now() >= deadline {
                     let dead_letter_msg = serde_json::to_string(&command).unwrap();
                     producer
@@ -81,7 +45,7 @@ async fn process_command(
                         && !associated_products.iter().any(|p| p.id == product.id)
                     {
                         associated_products.push(product.clone());
-                        if associated_products.len() == command.size {
+                        if associated_products.len() == command.size as usize {
                             break;
                         }
                     }
@@ -89,7 +53,7 @@ async fn process_command(
                 time::sleep(Duration::from_millis(100)).await;
             }
 
-            if associated_products.len() == command.size {
+            if associated_products.len() == command.size as usize {
                 let total_price: f64 = associated_products.iter().map(|p| p.price).sum();
                 let merged_command = MergedCommand {
                     id: command.id,
@@ -161,16 +125,28 @@ async fn main() {
 
                     match topic {
                         "Client" => {
-                            let client: Client = serde_json::from_str(&payload_str).unwrap();
-                            clients.insert(client.id, client);
+                            match serde_json::from_str::<Client>(&payload_str) {
+                                Ok(client) => {
+                                    clients.insert(client.id, client);
+                                }
+                                Err(e) => eprintln!("Failed to deserialize Client: {:?}", e),
+                            }
                         }
                         "Command" => {
-                            let command: Command = serde_json::from_str(&payload_str).unwrap();
-                            commands.push(command);
+                            match serde_json::from_str::<Command>(&payload_str) {
+                                Ok(command) => {
+                                    commands.push(command);
+                                }
+                                Err(e) => eprintln!("Failed to deserialize Command: {:?}", e),
+                            }
                         }
                         "Product" => {
-                            let product: Product = serde_json::from_str(&payload_str).unwrap();
-                            products.push(product);
+                            match serde_json::from_str::<Product>(&payload_str) {
+                                Ok(product) => {
+                                    products.push(product);
+                                }
+                                Err(e) => eprintln!("Failed to deserialize Product: {:?}", e),
+                            }
                         }
                         _ => (),
                     }
