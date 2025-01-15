@@ -30,9 +30,9 @@ async fn produce_product(pool: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 
-async fn produce_command(pool: &PgPool, producer: &BaseProducer, topic_name: &str) -> Result<(), Error> {
+async fn produce_command(pool: &PgPool, producer: &BaseProducer) -> Result<(), Error> {
     let command = command::MyCommand::generate_random();
-    command.process_command(pool, producer, topic_name).await?;
+    command.process_command(pool, producer).await?;
     Ok(())
 }
 
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Error> {
     } else {
         // Loop forever on producing commands
         loop {
-            produce_command(&pool, &producer, "Command").await.unwrap();
+            produce_command(&pool, &producer).await.unwrap();
         }
     }
 

@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_avro_derive::BuildSchema;
 use sqlx::PgPool;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, BuildSchema)]
 pub struct Product {
     pub id: i32,
     pub name: String,
@@ -10,7 +11,7 @@ pub struct Product {
     pub command_id: i32,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProductFromDb {
     pub id: i32,
     pub name: String,
