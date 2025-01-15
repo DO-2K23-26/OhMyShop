@@ -4,7 +4,7 @@ use chrono::DateTime;
 use rand::Rng;
 use rdkafka::producer::{BaseProducer, BaseRecord};
 
-use common::product::Product;
+use common::product::{Product, ProductFromDb};
 use common::command::CommandInterface;
 
 
@@ -15,6 +15,7 @@ pub struct MyCommand {
     client_id: i32,
     date: DateTime<chrono::Utc>,
 }
+
 
 #[async_trait]
 impl CommandInterface for MyCommand {
@@ -48,14 +49,7 @@ impl CommandInterface for MyCommand {
             println!("Message produced: {}", client_payload);
         }
 
-        let products = sqlx::query_as!(
-            Product,
-            "SELECT * FROM Product ORDER BY RANDOM() LIMIT $1",
-            product_limit
-        )
-        .fetch_all(pool)
-        .await?;
-
+        
         let command = sqlx::query!(
             r#"
             INSERT INTO Command (clientId, date) 
@@ -67,6 +61,23 @@ impl CommandInterface for MyCommand {
         )
         .fetch_one(pool)
         .await?;
+    
+        let products_from_db = sqlx::query_as!(
+            ProductFromDb,
+            r#"SELECT id, name, price
+            FROM Product 
+            ORDER BY RANDOM() 
+            LIMIT $1"#,
+            product_limit
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let products: Vec<Product> = products_from_db
+        .into_iter()
+        .map(|product| Product::from((product, command.id)))
+        .collect();
+
 
         let command_payload = serde_json::json!({
             "client_id": client_object.id,
