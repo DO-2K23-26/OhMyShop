@@ -4,6 +4,7 @@ use schema_registry_converter::async_impl::schema_registry::SrSettings;
 use serde::{Deserialize, Serialize};
 use serde_avro_derive::BuildSchema;
 use sqlx::PgPool;
+use crate::product::Product;
 
 #[derive(Debug, Serialize, Deserialize, Clone, BuildSchema)]
 pub struct Command {
@@ -18,6 +19,14 @@ pub struct CommandFromDb {
     pub id: i32,
     pub client_id: i32,
     pub date: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct MergedCommand {
+    pub id: i32,
+    pub date: String,
+    pub products: Vec<Product>,
+    pub total_price: f64,
 }
 
 impl From<(CommandFromDb, i32)> for Command {

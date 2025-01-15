@@ -9,3 +9,5 @@ serde = { version = "1.0.217", features = ["derive"] }
 chrono = "0.4.39"
 serde_json = "1.0.135"
 rdkafka = "0.37.0"
+common = { path = "../common" }
+sqlx = { version = "0.8.3", features = ["postgres"] }

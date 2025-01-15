@@ -1290,9 +1290,11 @@ name = "merger"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "common",
  "rdkafka",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
 ]
 
