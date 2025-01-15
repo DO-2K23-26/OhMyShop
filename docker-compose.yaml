@@ -155,6 +155,8 @@ services:
   schema-registry:
     image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
     restart: unless-stopped
+    ports:
+      - 8085:8085
     depends_on:
       - broker-1
       - broker-2

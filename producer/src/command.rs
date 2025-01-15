@@ -3,10 +3,12 @@ use chrono::DateTime;
 use common::client::Client;
 use rand::Rng;
 use rdkafka::producer::{BaseProducer, BaseRecord};
+use schema_registry_converter::async_impl::avro::AvroEncoder;
+use schema_registry_converter::async_impl::schema_registry::SrSettings;
+use schema_registry_converter::schema_registry_common::SubjectNameStrategy;
 use serde_avro_derive::BuildSchema;
 use serde_avro_fast::Schema;
 use sqlx::PgPool;
-use serde_avro_fast::ser::SerializerConfig;
 
 use common::command::{Command, CommandFromDb, CommandInterface};
 use common::product::{Product, ProductFromDb};
@@ -32,7 +34,10 @@ impl CommandInterface for MyCommand {
         &self,
         pool: &PgPool,
         producer: &BaseProducer,
+        sr_settings: &SrSettings,
     ) -> Result<(), sqlx::Error> {
+        let encoder = AvroEncoder::new((*sr_settings).clone());
+
         //retrieve random products from database
         let product_limit: i32 = rand::thread_rng().gen_range(1..=10);
         let client_schema: Schema = match Client::schema() {
@@ -96,20 +101,23 @@ impl CommandInterface for MyCommand {
             .map(|product| Product::from((product, command.id)))
             .collect();
 
-
-        let client_payload = serde_avro_fast::to_datum(
+        let client_payload = encoder
+        .encode_struct(
             &client_object,
-            Vec::new(),
-            &mut SerializerConfig::new(&client_schema),
+            &SubjectNameStrategy::TopicNameStrategy("Client".to_string(), false),
         )
-        .unwrap();
+        .await
+        .expect("Failed to encode client object");
 
-        let command_payload = serde_avro_fast::to_datum(
+        let command_payload = encoder
+        .encode_struct(
             &command,
-            Vec::new(),
-            &mut SerializerConfig::new(&command_schema),
+            &SubjectNameStrategy::TopicNameStrategy("Command".to_string(), false),
         )
-        .unwrap();
+        .await
+        .expect("Failed to encode command object");
+
+
 
         if let Err(e) = producer.send(
             BaseRecord::to("Client")
@@ -142,12 +150,13 @@ impl CommandInterface for MyCommand {
             )
             .execute(pool)
             .await?;
-            let product_payload = serde_avro_fast::to_datum(
-                &product,
-                Vec::new(),
-                &mut SerializerConfig::new(&product_schema),
-            )
-            .unwrap();
+            let product_payload = encoder
+                .encode_struct(
+                    &product,
+                    &SubjectNameStrategy::TopicNameStrategy("Product".to_string(), false),
+                )
+                .await
+                .expect("Failed to encode product object");
             if let Err(e) = producer.send(
                 BaseRecord::to("Product")
                     .payload(&product_payload)

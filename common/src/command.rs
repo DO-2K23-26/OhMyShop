@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use rdkafka::producer::BaseProducer;
+use schema_registry_converter::async_impl::schema_registry::SrSettings;
 use serde::{Deserialize, Serialize};
 use serde_avro_derive::BuildSchema;
 use sqlx::PgPool;
@@ -33,5 +34,5 @@ impl From<(CommandFromDb, i32)> for Command {
 #[async_trait]
 pub trait CommandInterface {
     fn generate_random() -> Self;
-    async fn process_command(&self, pool: &PgPool, producer: &BaseProducer) -> Result<(), sqlx::Error>;
+    async fn process_command(&self, pool: &PgPool, producer: &BaseProducer, sr_settings: &SrSettings) -> Result<(), sqlx::Error>;
 }
