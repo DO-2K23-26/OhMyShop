@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:17
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -116,7 +116,7 @@ services:
                 bootstrap.servers: "broker-1:9092"
               schema-registry:
                 url: "http://schema-registry:8085"
-      CLASSPATH: "/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*"
+      CLASSPATH: '/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*'
     ports:
       - 8080:8080
     links:
@@ -156,6 +156,25 @@ services:
       mc anonymous set public myminio/iceberg-tables;
       echo 'Buckets created and policies set!';
       "
+
+  hive-metastore:
+    image: apache/hive:4.0.1
+    container_name: hive-metastore
+    environment:
+      SERVICE_NAME: metastore
+    ports:
+      - '9083:9083'
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    restart: unless-stopped
+    depends_on:
+      - hive-metastore
+    ports:
+      - 8081:8080
+    volumes:
+      - ./docker/trino/catalog:/etc/trino/catalog
 
   schema-registry:
     image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
