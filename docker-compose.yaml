@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+
   broker-1:
     image: apache/kafka:latest
     container_name: broker-1
@@ -95,6 +96,22 @@ services:
         /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic Invoice --partitions 2 --replication-factor 2 &&
         /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server broker-1:9092 --topic DeadLetterQueue --partitions 2 --replication-factor 2;
         echo "Kafka initialization complete.";'
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - 8085:8085
+    depends_on:
+      broker-1:
+        condition: service_healthy
+      broker-2:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://broker-1:9092'
+      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
+      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
 
   akhq:
     image: tchiotludo/akhq
@@ -192,17 +209,3 @@ services:
       - 8081:8080
     volumes:
       - ./docker/trino/catalog:/etc/trino/catalog
-
-  schema-registry:
-    image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
-    restart: unless-stopped
-    ports:
-      - 8085:8085
-    depends_on:
-      - broker-1
-      - broker-2
-    environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://broker-1:9092'
-      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
-      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
-      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
