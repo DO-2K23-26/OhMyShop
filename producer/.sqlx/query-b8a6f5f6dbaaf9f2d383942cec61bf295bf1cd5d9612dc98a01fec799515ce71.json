@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO Command (clientId, date) \n            VALUES ($1, $2) \n            RETURNING id, clientId AS \"client_id\", date\n            ",
+  "query": "\n            INSERT INTO Command (clientId, date) \n            VALUES ($1, $2) \n            RETURNING id, clientId AS \"client_id\", COALESCE(TO_CHAR(date, 'YYYY-MM-DD'), '') AS \"date!\"\n            ",
   "describe": {
     "columns": [
       {
@@ -15,8 +15,8 @@
       },
       {
         "ordinal": 2,
-        "name": "date",
-        "type_info": "Date"
+        "name": "date!",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -28,8 +28,8 @@
     "nullable": [
       false,
       false,
-      false
+      null
     ]
   },
-  "hash": "1a8ad74ec2c203fd5743d28dbd76e2003aa705db107b9d0fb7d6ff677c2afbb3"
+  "hash": "b8a6f5f6dbaaf9f2d383942cec61bf295bf1cd5d9612dc98a01fec799515ce71"
 }
