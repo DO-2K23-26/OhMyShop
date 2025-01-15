@@ -3,14 +3,12 @@ use rdkafka::producer::BaseProducer;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-use crate::product::Product;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Command {
     pub id: i32,
     pub client_id: i32,
     pub date: String,
-    pub produits: Vec<Product>,
+    pub size: i32,
 }
 
 #[async_trait]
