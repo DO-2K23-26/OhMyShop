@@ -132,6 +132,8 @@ services:
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: password
+      MINIO_REGION: us-east-1
+      MINIO_REGION_NAME: us-east-1
     command: 'minio server /data --console-address ":9001"'
     healthcheck:
       test:
@@ -150,11 +152,9 @@ services:
     entrypoint: >
       /bin/sh -c "
       until (mc alias set myminio http://minio:9000 minio password); do echo 'Waiting for MinIO...'; sleep 3; done;
-      mc mb myminio/iceberg-tables;
-      mc mb myminio/parquet-files;
-      mc anonymous set public myminio/parquet-files;
-      mc anonymous set public myminio/iceberg-tables;
-      echo 'Buckets created and policies set!';
+      mc mb myminio/omelette;
+      mc anonymous set public myminio/omelette;
+      echo 'Bucket created and policie set!';
       "
 
   hive-metastore:
@@ -164,6 +164,10 @@ services:
       SERVICE_NAME: metastore
     ports:
       - '9083:9083'
+    volumes:
+      - ./docker/hive/plugin/aws-java-sdk-bundle-1.11.1026.jar:/opt/hive/lib/aws-java-sdk-bundle-1.11.1026.jar
+      - ./docker/hive/plugin/hadoop-aws-3.3.6.jar:/opt/hive/lib/hadoop-aws-3.3.6.jar
+      - ./docker/hive/hive-site.xml:/opt/hive/conf/hive-site.xml
 
   trino:
     image: trinodb/trino:latest

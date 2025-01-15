@@ -6,6 +6,8 @@ target/
 
 /target
 
+/docker/hive/plugin
+
 # Here is a long description of how to do an french omelette.
 # It is very important to have the right pan and the right heat.
 # You need to be patient and not rush the process.
