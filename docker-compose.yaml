@@ -157,11 +157,24 @@ services:
       echo 'Bucket created and policie set!';
       "
 
+  download-hive-plugin:
+    image: alpine:latest
+    container_name: download-hive-plugin
+    command: >
+      /bin/sh -c "
+      wget -O /jars/aws-java-sdk-bundle-1.11.1026.jar https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.11.1026/aws-java-sdk-bundle-1.11.1026.jar &&
+      wget -O /jars/hadoop-aws-3.3.6.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.6/hadoop-aws-3.3.6.jar"
+    volumes:
+      - ./docker/hive/plugin:/jars
+
   hive-metastore:
     image: apache/hive:4.0.1
     container_name: hive-metastore
     environment:
       SERVICE_NAME: metastore
+    depends_on:
+      download-hive-plugin:
+        condition: service_completed_successfully
     ports:
       - '9083:9083'
     volumes:
