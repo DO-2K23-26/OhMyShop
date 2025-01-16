@@ -1,0 +1,36 @@
+{
+  "name": "s3-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+    "tasks.max": "1",
+    "topics": "Invoice",
+
+    "s3.bucket.name": "omelette",
+    "s3.region": "us-east-1",
+    "s3.part.size": "5242880",
+
+    "store.url": "http://minio:9000",
+    "aws.access.key.id": "minio_access_key",
+    "aws.secret.access.key": "minio_secret_key",
+    "s3.path.style.access": "true",
+
+    "storage.class": "io.confluent.connect.s3.storage.S3Storage",
+    "format.class": "io.confluent.connect.s3.format.parquet.ParquetFormat",
+
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schemas.enable": "true",
+    "value.converter.schema.registry.url": "http://schema-registry:8085",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "key.converter.schemas.enable": "false",
+
+    "schema.generator.class": "io.confluent.connect.storage.hive.schema.DefaultSchemaGenerator",
+
+    "flush.size": "100",
+    "rotate.interval.ms": "10000",
+
+    "partitioner.class": "io.confluent.connect.storage.partitioner.DefaultPartitioner",
+    "locale": "fr-FR",
+    "timezone": "Europe/Paris"
+  }
+}
