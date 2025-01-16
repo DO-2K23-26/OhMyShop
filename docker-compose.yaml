@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:17
     ports:
-      - '5432:5432'
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -31,11 +31,11 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          '/opt/kafka/bin/kafka-topics.sh',
-          '--bootstrap-server',
-          'localhost:9092',
-          '--list',
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
         ]
       interval: 10s
       timeout: 5s
@@ -64,11 +64,11 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          '/opt/kafka/bin/kafka-topics.sh',
-          '--bootstrap-server',
-          'localhost:9092',
-          '--list',
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
         ]
       interval: 10s
       timeout: 5s
@@ -108,10 +108,10 @@ services:
       broker-2:
         condition: service_healthy
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://broker-1:9092'
-      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
-      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
-      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://broker-1:9092"
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8085"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "INFO"
 
   akhq:
     image: tchiotludo/akhq
@@ -133,7 +133,7 @@ services:
                 bootstrap.servers: "broker-1:9092"
               schema-registry:
                 url: "http://schema-registry:8085"
-      CLASSPATH: '/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*'
+      CLASSPATH: "/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*"
     ports:
       - 8080:8080
     links:
@@ -142,10 +142,10 @@ services:
       - schema-registry
 
   minio:
-    image: 'minio/minio:latest'
+    image: "minio/minio:latest"
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: password
@@ -156,8 +156,8 @@ services:
       test:
         - CMD
         - curl
-        - '-f'
-        - 'http://localhost:9000/minio/health/live'
+        - "-f"
+        - "http://localhost:9000/minio/health/live"
       retries: 3
       timeout: 5s
 
@@ -193,7 +193,7 @@ services:
       download-hive-plugin:
         condition: service_completed_successfully
     ports:
-      - '9083:9083'
+      - "9083:9083"
     volumes:
       - ./docker/hive/plugin/aws-java-sdk-bundle-1.11.1026.jar:/opt/hive/lib/aws-java-sdk-bundle-1.11.1026.jar
       - ./docker/hive/plugin/hadoop-aws-3.3.6.jar:/opt/hive/lib/hadoop-aws-3.3.6.jar
@@ -209,3 +209,13 @@ services:
       - 8081:8080
     volumes:
       - ./docker/trino/catalog:/etc/trino/catalog
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: trino-datasource
+    volumes:
+      - ./docker/grafana/plugins:/var/lib/grafana/plugins/trino
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
