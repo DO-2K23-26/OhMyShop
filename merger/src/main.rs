@@ -6,10 +6,25 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
 use rdkafka::Message;
+use schema_registry_converter::async_impl::avro::{AvroDecoder, AvroEncoder};
+use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
+use schema_registry_converter::schema_registry_common::{SchemaType, SubjectNameStrategy, SuppliedSchema};
 use common::client::Client;
 use common::command::{Command, MergedCommand};
 use common::product::Product;
 use common::invoice::Invoice;
+use serde_avro_derive::BuildSchema;
+use serde_json::Value;
+
+async fn decode_payload<T: for<'de> serde::Deserialize<'de> + std::fmt::Debug>  (
+    decoder: &AvroDecoder<'_>,
+    payload: &[u8],
+) -> Result<T, Box<dyn std::error::Error>> {
+    let decoded = decoder.decode(Option::from(payload)).await?;
+    let value: T = serde_json::from_value(Value::try_from(decoded.value).unwrap())?;
+    println!("Decoded message: {:?}", value);
+    Ok(value)
+}
 
 async fn process_command(
     producer: &FutureProducer,
@@ -18,7 +33,10 @@ async fn process_command(
     products: Vec<Product>,
     invoice_topic: &str,
     dead_letter_topic: &str,
+    sr_settings: &SrSettings,
 ) {
+    let encoder = AvroEncoder::new((*sr_settings).clone());
+
     for command in commands {
         if let Some(client) = clients.get(&command.client_id) {
             let mut associated_products: Vec<Product> = Vec::new();
@@ -66,7 +84,13 @@ async fn process_command(
                     client: client.clone(),
                     command: merged_command,
                 };
-                let invoice_msg = serde_json::to_string(&invoice).unwrap();
+                let invoice_msg = encoder.
+                    encode_struct(
+                        &invoice,
+                        &SubjectNameStrategy::TopicNameStrategy("Invoice".to_string(), false),
+                    )
+                    .await
+                    .expect("Failed to encode invoice object");
 
                 producer
                     .send(
@@ -98,6 +122,22 @@ async fn process_command(
 
 #[tokio::main]
 async fn main() {
+
+    let sr_settings = SrSettings::new(String::from("http://localhost:8085"));
+    let invoice_schema = Invoice::schema().unwrap();
+    let decoder = AvroDecoder::new(sr_settings.clone());
+
+    let invoice_supplied_schema = SuppliedSchema {
+        name: Some(String::from("Invoice")),
+        schema_type: SchemaType::Avro,
+        schema: String::from(invoice_schema.json()),
+        references: vec![],
+    };
+
+    if let Err(e) = post_schema(&sr_settings, "Invoice-value".to_string(), invoice_supplied_schema).await {
+        eprintln!("Failed to post invoice schema: {}", e);
+    };
+
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", "example-consumer-group")
         .set("bootstrap.servers", "localhost:29092")
@@ -121,11 +161,10 @@ async fn main() {
             Ok(message) => {
                 if let Some(payload) = message.payload() {
                     let topic = message.topic();
-                    let payload_str = String::from_utf8_lossy(payload);
 
                     match topic {
                         "Client" => {
-                            match serde_json::from_str::<Client>(&payload_str) {
+                            match decode_payload::<Client>(&decoder, payload).await {
                                 Ok(client) => {
                                     clients.insert(client.id, client);
                                 }
@@ -133,7 +172,7 @@ async fn main() {
                             }
                         }
                         "Command" => {
-                            match serde_json::from_str::<Command>(&payload_str) {
+                            match decode_payload::<Command>(&decoder, payload).await {
                                 Ok(command) => {
                                     commands.push(command);
                                 }
@@ -141,7 +180,7 @@ async fn main() {
                             }
                         }
                         "Product" => {
-                            match serde_json::from_str::<Product>(&payload_str) {
+                            match decode_payload::<Product>(&decoder, payload).await {
                                 Ok(product) => {
                                     products.push(product);
                                 }
@@ -163,6 +202,7 @@ async fn main() {
                 products.clone(),
                 "Invoice",
                 "DeadLetterQueue",
+                &sr_settings,
             )
                 .await;
             commands.clear();
