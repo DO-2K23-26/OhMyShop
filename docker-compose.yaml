@@ -214,3 +214,8 @@ services:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: trino-datasource
+    volumes:
+      - ./docker/grafana/plugins:/var/lib/grafana/plugins/trino
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
