@@ -136,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .set("group.id", "example-consumer-group")
         .set("bootstrap.servers", "localhost:19092")
         .set("enable.partition.eof", "false")
+        .set("auto.offset.reset", "earliest")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
         .set_log_level(RDKafkaLogLevel::Debug)
