@@ -4,42 +4,45 @@ A producer is a service that provides data to a consumer. In this case, the prod
 
 Here is a mermaid diagram of the producer's data model:
 
+### Interfaces 
+
+1. Client
+   ```json
+   {
+     "id": "int",
+     "name": "string",
+     "email": "string",
+     "address": "string"
+   }
+   ```
+
+2. Command
+    ```json
+    {
+      "id": "int",
+      "date": "date",
+      "client_id": "int",
+      "size": "int"
+    }
+    ```
+
+3. Product
+    ```json
+    {
+      "id": "int",
+      "name": "string",
+      "price": "float",
+      "command_id": "int"
+    }
+    ```
+
 ```mermaid
 erDiagram
     CLIENT ||..o{ COMMAND : places
     COMMAND ||..o{ PRODUCT : contains
 ```
 
-1. Client:
-    ```json
-    {
-      "id": "int",
-      "name": "string",
-      "email": "string",
-      "address": "string"
-    }
-    ```
-
-2. Command:
-    ```json
-    {
-        "id": "int",
-        "clientId": "id",
-        "date": "date",
-        "produits": "List<Product>"
-    }
-    ```
-
-3. Product:
-    ```json
-    {
-        "id": "int",
-        "name": "string",
-        "price": "float"
-    }
-    ```
-
-### Initial setup of database
+### Initial setup of the database
 ```bash
 docker compose up -d
 cargo install sqlx-cli

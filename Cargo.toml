@@ -3,6 +3,5 @@ members = [
     "common",
     "merger",
     "producer",
-    "saver"
 ]
 resolver = "2"
