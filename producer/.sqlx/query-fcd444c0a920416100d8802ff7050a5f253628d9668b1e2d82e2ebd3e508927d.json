@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO Command (clientId, date)\n            VALUES ($1, $2)\n            RETURNING id, clientId AS \"client_id\", COALESCE(TO_CHAR(date, 'YYYY-MM-DD'), '') AS \"date!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "client_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "date!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "fcd444c0a920416100d8802ff7050a5f253628d9668b1e2d82e2ebd3e508927d"
+}
