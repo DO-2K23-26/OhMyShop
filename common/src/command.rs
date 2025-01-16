@@ -4,7 +4,7 @@ use schema_registry_converter::async_impl::schema_registry::SrSettings;
 use serde::{Deserialize, Serialize};
 use serde_avro_derive::BuildSchema;
 use sqlx::PgPool;
-use crate::product::Product;
+use crate::{invoice::Invoice, product::Product};
 
 #[derive(Debug, Serialize, Deserialize, Clone, BuildSchema)]
 pub struct Command {

@@ -1,16 +1,21 @@
+mod command;
+mod product;
+mod client;
+
 use std::collections::HashMap;
 use std::time::Duration;
-use chrono::Utc;
-use tokio::time;
+use client::process_client;
+use command::process_command;
+use product::process_product;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
 use rdkafka::Message;
-use schema_registry_converter::async_impl::avro::{AvroDecoder, AvroEncoder};
+use schema_registry_converter::async_impl::avro::AvroDecoder;
 use schema_registry_converter::async_impl::schema_registry::{post_schema, SrSettings};
-use schema_registry_converter::schema_registry_common::{SchemaType, SubjectNameStrategy, SuppliedSchema};
+use schema_registry_converter::schema_registry_common::{SchemaType, SuppliedSchema};
 use common::client::Client;
-use common::command::{Command, MergedCommand};
+use common::command::Command;
 use common::product::Product;
 use common::invoice::Invoice;
 use serde_avro_derive::BuildSchema;
@@ -21,107 +26,29 @@ async fn decode_payload<T: for<'de> serde::Deserialize<'de> + std::fmt::Debug>  
     payload: &[u8],
 ) -> Result<T, Box<dyn std::error::Error>> {
     let decoded = decoder.decode(Option::from(payload)).await?;
-    let value: T = serde_json::from_value(Value::try_from(decoded.value).unwrap())?;
+    let value: T = serde_json::from_value::<T>(Value::try_from(decoded.value).unwrap())?;
     println!("Decoded message: {:?}", value);
     Ok(value)
 }
 
-async fn process_command(
-    producer: &FutureProducer,
-    clients: &HashMap<i32, Client>,
-    commands: Vec<Command>,
-    products: Vec<Product>,
-    invoice_topic: &str,
-    dead_letter_topic: &str,
-    sr_settings: &SrSettings,
-) {
-    let encoder = AvroEncoder::new((*sr_settings).clone());
+pub async fn send_to_dlq<T: for<'de> serde::Deserialize<'de> + serde::Serialize>(producer: &FutureProducer, key: i32, object: T) {
+    // send to DLQ
+    let dead_letter_msg = serde_json::to_string(&object).unwrap();
+    producer
+        .send(
+            FutureRecord::to("DeadLetterQueue")
+                .key(&key.to_string())
+                .payload(&dead_letter_msg),
+            Duration::from_secs(0),
+        )
+        .await
+        .unwrap();
+    println!("Object {} moved to dead letter queue.", dead_letter_msg);
 
-    for command in commands {
-        if let Some(client) = clients.get(&command.client_id) {
-            let mut associated_products: Vec<Product> = Vec::new();
-            let deadline = Utc::now() + chrono::Duration::seconds(120);
-
-            while associated_products.len() < command.size as usize {
-                if Utc::now() >= deadline {
-                    let dead_letter_msg = serde_json::to_string(&command).unwrap();
-                    producer
-                        .send(
-                            FutureRecord::to(dead_letter_topic)
-                                .key(&command.id.to_string())
-                                .payload(&dead_letter_msg),
-                            Duration::from_secs(0),
-                        )
-                        .await
-                        .unwrap();
-                    println!("Command {} moved to dead letter queue.", command.id);
-                    break;
-                }
-
-                for product in &products {
-                    if product.command_id == command.id
-                        && !associated_products.iter().any(|p| p.id == product.id)
-                    {
-                        associated_products.push(product.clone());
-                        if associated_products.len() == command.size as usize {
-                            break;
-                        }
-                    }
-                }
-                time::sleep(Duration::from_millis(100)).await;
-            }
-
-            if associated_products.len() == command.size as usize {
-                let total_price: f64 = associated_products.iter().map(|p| p.price).sum();
-                let merged_command = MergedCommand {
-                    id: command.id,
-                    date: command.date.clone(),
-                    products: associated_products,
-                    total_price,
-                };
-                let invoice = Invoice {
-                    timestamp: Utc::now().to_rfc3339(),
-                    client: client.clone(),
-                    command: merged_command,
-                };
-                let invoice_msg = encoder.
-                    encode_struct(
-                        &invoice,
-                        &SubjectNameStrategy::TopicNameStrategy("Invoice".to_string(), false),
-                    )
-                    .await
-                    .expect("Failed to encode invoice object");
-
-                producer
-                    .send(
-                        FutureRecord::to(invoice_topic)
-                            .key(&command.id.to_string())
-                            .payload(&invoice_msg),
-                        Duration::from_secs(0),
-                    )
-                    .await
-                    .unwrap();
-
-                println!("Invoice for command {} sent to invoice topic.", command.id);
-            }
-        } else {
-            let dead_letter_msg = serde_json::to_string(&command).unwrap();
-            producer
-                .send(
-                    FutureRecord::to(dead_letter_topic)
-                        .key(&command.id.to_string())
-                        .payload(&dead_letter_msg),
-                    Duration::from_secs(0),
-                )
-                .await
-                .unwrap();
-            println!("Command {} moved to dead letter queue due to missing client.", command.id);
-        }
-    }
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let sr_settings = SrSettings::new(String::from("http://localhost:8085"));
     let invoice_schema = Invoice::schema().unwrap();
@@ -150,9 +77,8 @@ async fn main() {
         .create()
         .expect("Failed to create Kafka producer");
 
+    let mut invoices: HashMap<i32, Invoice> = HashMap::new();
     let mut clients: HashMap<i32, Client> = HashMap::new();
-    let mut commands: Vec<Command> = Vec::new();
-    let mut products: Vec<Product> = Vec::new();
 
     consumer.subscribe(&["Client", "Command", "Product"]).expect("Failed to subscribe to topics");
 
@@ -164,48 +90,25 @@ async fn main() {
 
                     match topic {
                         "Client" => {
-                            match decode_payload::<Client>(&decoder, payload).await {
-                                Ok(client) => {
-                                    clients.insert(client.id, client);
-                                }
-                                Err(e) => eprintln!("Failed to deserialize Client: {:?}", e),
-                            }
+                            let client = decode_payload::<Client>(&decoder, payload).await?;
+
+                            process_client(&producer, &client);
                         }
                         "Command" => {
-                            match decode_payload::<Command>(&decoder, payload).await {
-                                Ok(command) => {
-                                    commands.push(command);
-                                }
-                                Err(e) => eprintln!("Failed to deserialize Command: {:?}", e),
-                            }
+                            let command = decode_payload::<Command>(&decoder, payload).await?;
+
+                            process_command(&producer, &command, &mut invoices, &mut clients);
                         }
                         "Product" => {
-                            match decode_payload::<Product>(&decoder, payload).await {
-                                Ok(product) => {
-                                    products.push(product);
-                                }
-                                Err(e) => eprintln!("Failed to deserialize Product: {:?}", e),
-                            }
+                            let product = decode_payload::<Product>(&decoder, payload).await?;
+
+                            process_product(&producer, &product);
                         }
                         _ => (),
                     }
                 }
             }
             Err(e) => eprintln!("Error while consuming: {:?}", e),
-        }
-
-        if !commands.is_empty() {
-            process_command(
-                &producer,
-                &clients,
-                commands.clone(),
-                products.clone(),
-                "Invoice",
-                "DeadLetterQueue",
-                &sr_settings,
-            )
-                .await;
-            commands.clear();
         }
     }
 }
