@@ -21,7 +21,7 @@ pub struct CommandFromDb {
     pub date: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, BuildSchema)]
 pub struct MergedCommand {
     pub id: i32,
     pub date: String,
