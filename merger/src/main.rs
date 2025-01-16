@@ -53,7 +53,7 @@ async fn handle_product(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let product = decode_payload::<Product>(decoder, &payload).await?;
     let invoices_clone = Arc::clone(&invoices);
-    process_product(producer, &product, invoices_clone).await;
+    process_product(Arc::new(producer.clone()), product, invoices_clone).await;
     Ok(())
 }
 
@@ -68,7 +68,7 @@ async fn handle_command(
     let command = decode_payload::<Command>(decoder, &payload).await?;
     let invoices_clone = Arc::clone(&invoices);
     let clients_clone = Arc::clone(&clients);
-    process_command(producer, &command, invoices_clone, clients_clone).await;
+    process_command(Arc::new(producer.clone()), command, invoices_clone, clients_clone).await;
     Ok(())
 }
 

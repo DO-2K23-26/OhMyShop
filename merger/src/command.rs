@@ -1,46 +1,50 @@
 use std::{collections::HashMap, sync::Arc};
 use common::{client::Client, command::Command, invoice::Invoice};
 use rdkafka::producer::FutureProducer;
-use tokio::time::{sleep, Duration};
-use tokio::task;
 use tokio::sync::Mutex;
-
+use backon::{ExponentialBuilder, Retryable};
 use crate::send_to_dlq;
 
 pub async fn process_command(
-    producer: &FutureProducer,
-    command: &Command,
+    producer: Arc<FutureProducer>,
+    command: Command,
     invoices: Arc<Mutex<HashMap<i32, Invoice>>>,
     clients: Arc<Mutex<HashMap<i32, Client>>>,
 ) {
-    let mut invoice = Invoice::from(command.clone());
+    // Spawn a new task to process the command
+    tokio::spawn(async move {
+        let retry_result = (|| async {
+            let clients_lock = clients.lock().await;
+            clients_lock.get(&command.client_id).cloned().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Client with ID {} not found",
+                    command.client_id
+                )
+            })
+        })
+        .retry(ExponentialBuilder::default().with_max_times(5))
+        .sleep(tokio::time::sleep)
+        .notify(|err, dur| {
+            println!(
+                "Retrying to fetch client with ID {} after {:?}: {}",
+                command.client_id, dur, err
+            );
+        })
+        .await;
 
-    // Attempt to retrieve the client from the HashMap
-    if let Some(client) = clients.lock().await.remove(&command.client_id) {
-        invoice.client = client;
-        invoices.lock().await.insert(invoice.id, invoice);
-    } else {
-        // Client not found, spawn a task to wait for 20 seconds and recheck
-        let arc_clients = Arc::clone(&clients);
-        let arc_invoices = Arc::clone(&invoices);
-        let command_clone = command.clone();
-        let producer_clone = producer.clone();
+        match retry_result {
+            Ok(client) => {
+                // Client found, create the invoice and insert into shared map
+                let mut invoice = Invoice::from(command.clone());
+                invoice.client = client;
 
-        task::spawn(async move {
-            sleep(Duration::from_secs(10)).await;
-
-            // Lock the clients HashMap again to recheck
-            let mut clients_lock = arc_clients.lock().await;
-            let mut invoices_lock = arc_invoices.lock().await;
-
-            if let Some(client) = clients_lock.remove(&command_clone.client_id) {
-                let mut delayed_invoice = Invoice::from(command_clone.clone());
-                delayed_invoice.client = client;
-                invoices_lock.insert(delayed_invoice.id, delayed_invoice);
-            } else {
-                // Still not found, send the command to the Dead Letter Queue (DLQ)
-                send_to_dlq(&producer_clone, command_clone.id, command_clone).await;
+                let mut invoices_lock = invoices.lock().await;
+                invoices_lock.insert(invoice.id, invoice);
             }
-        });
-    }
+            Err(_) => {
+                // Client not found after retries, send the command to the DLQ
+                send_to_dlq(&producer, command.id, command).await;
+            }
+        }
+    });
 }
