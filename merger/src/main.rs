@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "Client" => {
                             let client = decode_payload::<Client>(&decoder, payload).await?;
 
-                            process_client(&producer, &client);
+                            process_client(&client, &mut clients);
                         }
                         "Command" => {
                             let command = decode_payload::<Command>(&decoder, payload).await?;

@@ -1,6 +1,7 @@
-use common::client::Client;
-use rdkafka::producer::FutureProducer;
+use std::collections::HashMap;
 
-pub fn process_client(producer: &FutureProducer, client: &Client) {
-    
+use common::client::Client;
+
+pub fn process_client(client: &Client, clients: &mut HashMap<i32, Client>) {
+    clients.insert(client.id, client.clone());
 }
