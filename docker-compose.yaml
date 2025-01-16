@@ -1,14 +1,19 @@
+networks:
+  default:
+
 services:
   postgres:
     image: postgres:17
     ports:
-      - '5432:5432'
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
 
   broker-1:
+    networks:
+      - default
     image: apache/kafka:latest
     container_name: broker-1
     restart: unless-stopped
@@ -31,17 +36,19 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          '/opt/kafka/bin/kafka-topics.sh',
-          '--bootstrap-server',
-          'localhost:9092',
-          '--list',
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   broker-2:
+    networks:
+      - default
     image: apache/kafka:latest
     container_name: broker-2
     restart: unless-stopped
@@ -64,11 +71,11 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          '/opt/kafka/bin/kafka-topics.sh',
-          '--bootstrap-server',
-          'localhost:9092',
-          '--list',
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
         ]
       interval: 10s
       timeout: 5s
@@ -98,6 +105,8 @@ services:
         echo "Kafka initialization complete.";'
 
   schema-registry:
+    networks:
+      - default
     image: confluentinc/cp-schema-registry:${CONFLUENT_VERSION:-latest}
     restart: unless-stopped
     ports:
@@ -108,10 +117,18 @@ services:
       broker-2:
         condition: service_healthy
     environment:
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://broker-1:9092'
-      SCHEMA_REGISTRY_HOST_NAME: 'schema-registry'
-      SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8085'
-      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: 'INFO'
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "PLAINTEXT://broker-1:9092"
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8085"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "INFO"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - "-f"
+        - "http://localhost:8085/subjects"
+      retries: 3
+      timeout: 5s
 
   akhq:
     image: tchiotludo/akhq
@@ -133,7 +150,7 @@ services:
                 bootstrap.servers: "broker-1:9092"
               schema-registry:
                 url: "http://schema-registry:8085"
-      CLASSPATH: '/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*'
+      CLASSPATH: "/app/tibftl-kafka-avro-1.2.0-thin.jar:/app/deps/*"
     ports:
       - 8080:8080
     links:
@@ -142,10 +159,10 @@ services:
       - schema-registry
 
   minio:
-    image: 'minio/minio:latest'
+    image: "minio/minio:latest"
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: password
@@ -156,8 +173,8 @@ services:
       test:
         - CMD
         - curl
-        - '-f'
-        - 'http://localhost:9000/minio/health/live'
+        - "-f"
+        - "http://localhost:9000/minio/health/live"
       retries: 3
       timeout: 5s
 
@@ -171,8 +188,80 @@ services:
       until (mc alias set myminio http://minio:9000 minio password); do echo 'Waiting for MinIO...'; sleep 3; done;
       mc mb myminio/omelette;
       mc anonymous set public myminio/omelette;
+      mc admin user svcacct add myminio minio --access-key minio_access_key --secret-key minio_secret_key;
+      mc mb myminio/omelette/parquet;
       echo 'Bucket created and policie set!';
       "
+
+  kafka-connect:
+    networks:
+      - default
+    image: confluentinc/cp-kafka-connect:7.4.0
+    container_name: kafka-connect
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    depends_on:
+      broker-1:
+        condition: service_healthy
+      broker-2:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      init-topics:
+        condition: service_completed_successfully
+      init-minio:
+        condition: service_completed_successfully
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: broker-1:9092,broker-2:9092
+      CONNECT_GROUP_ID: "kafka-connect"
+
+      # Internal topics
+      CONNECT_CONFIG_STORAGE_TOPIC: "_connect-configs"
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 2
+      CONNECT_OFFSET_STORAGE_TOPIC: "_connect-offsets"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 2
+      CONNECT_STATUS_STORAGE_TOPIC: "_connect-status"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 2
+
+      # Converter
+      CONNECT_KEY_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+
+      # Other settings
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
+
+      # Schema Registry
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8085"
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8085"
+    command:
+      - /bin/bash
+      - -c
+      - |
+        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest &&
+        /etc/confluent/docker/run
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  init-kafka-connect:
+    image: curlimages/curl:latest
+    container_name: init-kafka-connect
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+    command: >
+      /bin/sh -c '
+      sleep 10 &&
+      curl -X POST -H "Content-Type: application/json" --data @/config/s3-sink.json http://kafka-connect:8083/connectors;
+      '
+    volumes:
+      - ./docker/kafka-connect/config:/config
 
   download-hive-plugin:
     image: alpine:latest
@@ -193,7 +282,7 @@ services:
       download-hive-plugin:
         condition: service_completed_successfully
     ports:
-      - '9083:9083'
+      - "9083:9083"
     volumes:
       - ./docker/hive/plugin/aws-java-sdk-bundle-1.11.1026.jar:/opt/hive/lib/aws-java-sdk-bundle-1.11.1026.jar
       - ./docker/hive/plugin/hadoop-aws-3.3.6.jar:/opt/hive/lib/hadoop-aws-3.3.6.jar
@@ -209,3 +298,13 @@ services:
       - 8081:8080
     volumes:
       - ./docker/trino/catalog:/etc/trino/catalog
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: trino-datasource
+    volumes:
+      - ./docker/grafana/plugins:/var/lib/grafana/plugins/trino
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
